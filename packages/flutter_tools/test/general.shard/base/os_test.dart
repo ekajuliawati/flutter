@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:file/file.dart';
 import 'package:file/memory.dart';
 import 'package:flutter_tools/src/base/common.dart';
@@ -9,9 +11,12 @@ import 'package:flutter_tools/src/base/file_system.dart';
 import 'package:flutter_tools/src/base/logger.dart';
 import 'package:flutter_tools/src/base/os.dart';
 import 'package:flutter_tools/src/base/platform.dart';
+<<<<<<< HEAD
 import 'package:flutter_tools/src/build_info.dart';
 import 'package:mockito/mockito.dart';
 import 'package:process/process.dart';
+=======
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
 
 import '../../src/common.dart';
 import '../../src/context.dart';
@@ -21,17 +26,23 @@ const String kPath1 = '/bar/bin/$kExecutable';
 const String kPath2 = '/another/bin/$kExecutable';
 
 void main() {
+<<<<<<< HEAD
   MockProcessManager mockProcessManager;
   FakeProcessManager fakeProcessManager;
 
   setUp(() {
     mockProcessManager = MockProcessManager();
+=======
+  FakeProcessManager fakeProcessManager;
+
+  setUp(() {
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
     fakeProcessManager = FakeProcessManager.list(<FakeCommand>[]);
   });
 
   OperatingSystemUtils createOSUtils(Platform platform) {
     return OperatingSystemUtils(
-      fileSystem: MemoryFileSystem(),
+      fileSystem: MemoryFileSystem.test(),
       logger: BufferLogger.test(),
       platform: platform,
       processManager: fakeProcessManager,
@@ -88,13 +99,30 @@ void main() {
 
   group('which on Windows', () {
     testWithoutContext('throws tool exit if where throws an argument error', () async {
+<<<<<<< HEAD
       when(mockProcessManager.runSync(<String>['where', kExecutable]))
           .thenThrow(ArgumentError('Cannot find executable for where'));
+=======
+      fakeProcessManager.addCommand(
+        FakeCommand(
+          command: const <String>[
+            'where',
+            kExecutable,
+          ],
+          exception: ArgumentError('Cannot find executable for where'),
+        ),
+      );
+
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
       final OperatingSystemUtils utils = OperatingSystemUtils(
         fileSystem: MemoryFileSystem.test(),
         logger: BufferLogger.test(),
         platform: FakePlatform(operatingSystem: 'windows'),
+<<<<<<< HEAD
         processManager: mockProcessManager,
+=======
+        processManager: fakeProcessManager,
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
       );
 
       expect(() => utils.which(kExecutable), throwsA(isA<ToolExit>()));
@@ -149,6 +177,19 @@ void main() {
 
   group('host platform', () {
     testWithoutContext('unknown defaults to Linux', () async {
+<<<<<<< HEAD
+=======
+      fakeProcessManager.addCommand(
+        const FakeCommand(
+          command: <String>[
+            'uname',
+            '-m',
+          ],
+          stdout: 'x86_64',
+        ),
+      );
+
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
       final OperatingSystemUtils utils =
       createOSUtils(FakePlatform(operatingSystem: 'fuchsia'));
       expect(utils.hostPlatform, HostPlatform.linux_x64);
@@ -160,12 +201,27 @@ void main() {
       expect(utils.hostPlatform, HostPlatform.windows_x64);
     });
 
+<<<<<<< HEAD
     testWithoutContext('Linux', () async {
+=======
+    testWithoutContext('Linux x64', () async {
+      fakeProcessManager.addCommand(
+        const FakeCommand(
+          command: <String>[
+            'uname',
+            '-m',
+          ],
+          stdout: 'x86_64',
+        ),
+      );
+
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
       final OperatingSystemUtils utils =
       createOSUtils(FakePlatform(operatingSystem: 'linux'));
       expect(utils.hostPlatform, HostPlatform.linux_x64);
     });
 
+<<<<<<< HEAD
     testWithoutContext('macOS ARM', () async {
       fakeProcessManager.addCommand(
         const FakeCommand(
@@ -174,16 +230,64 @@ void main() {
             'hw.optional.arm64',
           ],
           stdout: 'hw.optional.arm64: 1',
+=======
+    testWithoutContext('Linux ARM', () async {
+      fakeProcessManager.addCommand(
+        const FakeCommand(
+          command: <String>[
+            'uname',
+            '-m',
+          ],
+          stdout: 'aarch64',
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
         ),
       );
 
       final OperatingSystemUtils utils =
+<<<<<<< HEAD
+=======
+      createOSUtils(FakePlatform(operatingSystem: 'linux'));
+      expect(utils.hostPlatform, HostPlatform.linux_arm64);
+    });
+
+    testWithoutContext('macOS ARM', () async {
+      fakeProcessManager.addCommands(
+        <FakeCommand>[
+          const FakeCommand(
+            command: <String>[
+              'which',
+              'sysctl',
+            ],
+          ),
+          const FakeCommand(
+            command: <String>[
+              'sysctl',
+              'hw.optional.arm64',
+            ],
+            stdout: 'hw.optional.arm64: 1',
+          ),
+        ],
+      );
+
+      final OperatingSystemUtils utils =
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
       createOSUtils(FakePlatform(operatingSystem: 'macos'));
       expect(utils.hostPlatform, HostPlatform.darwin_arm);
     });
 
     testWithoutContext('macOS 11 x86', () async {
+<<<<<<< HEAD
       fakeProcessManager.addCommand(
+=======
+      fakeProcessManager.addCommands(
+        <FakeCommand>[
+          const FakeCommand(
+            command: <String>[
+              'which',
+              'sysctl',
+            ],
+          ),
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
           const FakeCommand(
             command: <String>[
               'sysctl',
@@ -191,15 +295,50 @@ void main() {
             ],
             stdout: 'hw.optional.arm64: 0',
           ),
+<<<<<<< HEAD
           );
+=======
+        ],
+      );
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
 
       final OperatingSystemUtils utils =
       createOSUtils(FakePlatform(operatingSystem: 'macos'));
       expect(utils.hostPlatform, HostPlatform.darwin_x64);
     });
 
+<<<<<<< HEAD
     testWithoutContext('macOS 10 x86', () async {
       fakeProcessManager.addCommand(
+=======
+    testWithoutContext('sysctl not found', () async {
+      fakeProcessManager.addCommands(
+        <FakeCommand>[
+          const FakeCommand(
+            command: <String>[
+              'which',
+              'sysctl',
+            ],
+            exitCode: 1,
+          ),
+        ],
+      );
+
+      final OperatingSystemUtils utils =
+      createOSUtils(FakePlatform(operatingSystem: 'macos'));
+      expect(() => utils.hostPlatform, throwsToolExit(message: 'sysctl'));
+    });
+
+    testWithoutContext('macOS 10 x86', () async {
+      fakeProcessManager.addCommands(
+        <FakeCommand>[
+          const FakeCommand(
+            command: <String>[
+              'which',
+              'sysctl',
+            ],
+          ),
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
           const FakeCommand(
             command: <String>[
               'sysctl',
@@ -207,7 +346,12 @@ void main() {
             ],
             exitCode: 1,
           ),
+<<<<<<< HEAD
           );
+=======
+        ],
+      );
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
 
       final OperatingSystemUtils utils =
       createOSUtils(FakePlatform(operatingSystem: 'macos'));
@@ -239,6 +383,15 @@ void main() {
         ),
         const FakeCommand(
           command: <String>[
+<<<<<<< HEAD
+=======
+            'which',
+            'sysctl',
+          ],
+        ),
+        const FakeCommand(
+          command: <String>[
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
             'sysctl',
             'hw.optional.arm64',
           ],
@@ -276,6 +429,15 @@ void main() {
         ),
         const FakeCommand(
           command: <String>[
+<<<<<<< HEAD
+=======
+            'which',
+            'sysctl',
+          ],
+        ),
+        const FakeCommand(
+          command: <String>[
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
             'sysctl',
             'hw.optional.arm64',
           ],
@@ -291,12 +453,18 @@ void main() {
 
   testWithoutContext('If unzip fails, include stderr in exception text', () {
     const String exceptionMessage = 'Something really bad happened.';
+<<<<<<< HEAD
+=======
+    final FileExceptionHandler handler = FileExceptionHandler();
+    final FileSystem fileSystem = MemoryFileSystem.test(opHandle: handler.opHandle);
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
 
     fakeProcessManager.addCommand(
       const FakeCommand(command: <String>[
         'unzip',
         '-o',
         '-q',
+<<<<<<< HEAD
         null,
         '-d',
         null,
@@ -309,7 +477,20 @@ void main() {
     when(fileSystem.file(any)).thenReturn(mockFile);
     when(mockFile.readAsBytesSync()).thenThrow(
       const FileSystemException(exceptionMessage),
+=======
+        'bar.zip',
+        '-d',
+        'foo',
+      ], exitCode: 1, stderr: exceptionMessage),
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
     );
+
+    final Directory foo = fileSystem.directory('foo')
+      ..createSync();
+    final File bar = fileSystem.file('bar.zip')
+      ..createSync();
+    handler.addError(bar, FileSystemOp.read, const FileSystemException(exceptionMessage));
+
     final OperatingSystemUtils osUtils = OperatingSystemUtils(
       fileSystem: fileSystem,
       logger: BufferLogger.test(),
@@ -318,17 +499,92 @@ void main() {
     );
 
     expect(
-      () => osUtils.unzip(mockFile, mockDirectory),
+      () => osUtils.unzip(bar, foo),
       throwsProcessException(message: exceptionMessage),
     );
+  });
+
+  group('display an install message when unzip throws an ArgumentError', () {
+    testWithoutContext('Linux', () {
+      final FileSystem fileSystem = MemoryFileSystem.test();
+      fakeProcessManager.addCommand(
+        FakeCommand(
+          command: <String>[
+            'unzip', '-o', '-q', 'foo.zip', '-d', fileSystem.currentDirectory.path,
+          ],
+          exception: ArgumentError(),
+        ),
+      );
+
+      final OperatingSystemUtils linuxOsUtils = OperatingSystemUtils(
+        fileSystem: fileSystem,
+        logger: BufferLogger.test(),
+        platform: FakePlatform(operatingSystem: 'linux'),
+        processManager: fakeProcessManager,
+      );
+
+      expect(
+        () => linuxOsUtils.unzip(fileSystem.file('foo.zip'), fileSystem.currentDirectory),
+        throwsToolExit(
+          message: 'Missing "unzip" tool. Unable to extract foo.zip.\n'
+          'Consider running "sudo apt-get install unzip".'),
+      );
+    });
+
+    testWithoutContext('macOS', () {
+      final FileSystem fileSystem = MemoryFileSystem.test();
+      fakeProcessManager.addCommand(
+        FakeCommand(
+          command: <String>[
+            'unzip', '-o', '-q', 'foo.zip', '-d', fileSystem.currentDirectory.path,
+          ],
+          exception: ArgumentError(),
+        ),
+      );
+
+      final OperatingSystemUtils macOSUtils = OperatingSystemUtils(
+        fileSystem: fileSystem,
+        logger: BufferLogger.test(),
+        platform: FakePlatform(operatingSystem: 'macos'),
+        processManager: fakeProcessManager,
+      );
+
+      expect(
+            () => macOSUtils.unzip(fileSystem.file('foo.zip'), fileSystem.currentDirectory),
+        throwsToolExit
+          (message: 'Missing "unzip" tool. Unable to extract foo.zip.\n'
+            'Consider running "brew install unzip".'),
+      );
+    });
+
+    testWithoutContext('unknown OS', () {
+      final FileSystem fileSystem = MemoryFileSystem.test();
+      fakeProcessManager.addCommand(
+        FakeCommand(
+          command: <String>[
+            'unzip', '-o', '-q', 'foo.zip', '-d', fileSystem.currentDirectory.path,
+          ],
+          exception: ArgumentError(),
+        ),
+      );
+
+      final OperatingSystemUtils unknownOsUtils = OperatingSystemUtils(
+        fileSystem: fileSystem,
+        logger: BufferLogger.test(),
+        platform: FakePlatform(operatingSystem: 'fuchsia'),
+        processManager: fakeProcessManager,
+      );
+
+      expect(
+            () => unknownOsUtils.unzip(fileSystem.file('foo.zip'), fileSystem.currentDirectory),
+        throwsToolExit
+          (message: 'Missing "unzip" tool. Unable to extract foo.zip.\n'
+            'Please install unzip.'),
+      );
+    });
   });
 
   testWithoutContext('stream compression level', () {
     expect(OperatingSystemUtils.gzipLevel1.level, equals(1));
   });
 }
-
-class MockProcessManager extends Mock implements ProcessManager {}
-class MockDirectory extends Mock implements Directory {}
-class MockFileSystem extends Mock implements FileSystem {}
-class MockFile extends Mock implements File {}

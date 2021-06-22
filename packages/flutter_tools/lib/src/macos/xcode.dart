@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:async';
 
+import 'package:file/memory.dart';
 import 'package:meta/meta.dart';
 import 'package:process/process.dart';
-import 'package:vm_service/vm_service_io.dart' as vm_service_io;
 
 import '../artifacts.dart';
 import '../base/common.dart';
@@ -16,6 +18,7 @@ import '../base/logger.dart';
 import '../base/os.dart';
 import '../base/platform.dart';
 import '../base/process.dart';
+import '../base/version.dart';
 import '../build_info.dart';
 import '../cache.dart';
 import '../convert.dart';
@@ -27,15 +30,11 @@ import '../ios/mac.dart';
 import '../ios/xcodeproj.dart';
 import '../reporting/reporting.dart';
 
-const int kXcodeRequiredVersionMajor = 11;
-const int kXcodeRequiredVersionMinor = 0;
-const int kXcodeRequiredVersionPatch = 0;
+Version get xcodeRequiredVersion => Version(12, 0, 1, text: '12.0.1');
 
-enum SdkType {
-  iPhone,
-  iPhoneSimulator,
-  macOS,
-}
+/// Diverging this number from the minimum required version will provide a doctor
+/// warning, not error, that users should upgrade Xcode.
+Version get xcodeRecommendedVersion => xcodeRequiredVersion;
 
 /// SDK name passed to `xcrun --sdk`. Corresponds to undocumented Xcode
 /// SUPPORTED_PLATFORMS values.
@@ -43,17 +42,10 @@ enum SdkType {
 /// Usage: xcrun [options] <tool name> ... arguments ...
 /// ...
 /// --sdk <sdk name>            find the tool for the given SDK name.
-String getNameForSdk(SdkType sdk) {
-  switch (sdk) {
-    case SdkType.iPhone:
-      return 'iphoneos';
-    case SdkType.iPhoneSimulator:
-      return 'iphonesimulator';
-    case SdkType.macOS:
-      return 'macosx';
-  }
-  assert(false);
-  return null;
+String getSDKNameForIOSEnvironmentType(EnvironmentType environmentType) {
+  return (environmentType == EnvironmentType.simulator)
+      ? 'iphonesimulator'
+      : 'iphoneos';
 }
 
 /// A utility class for interacting with Xcode command line tools.
@@ -67,6 +59,7 @@ class Xcode {
   })  : _platform = platform,
         _fileSystem = fileSystem,
         _xcodeProjectInterpreter = xcodeProjectInterpreter,
+<<<<<<< HEAD
         _operatingSystemUtils = OperatingSystemUtils(
           fileSystem: fileSystem,
           logger: logger,
@@ -75,6 +68,34 @@ class Xcode {
         ),
         _processUtils =
             ProcessUtils(logger: logger, processManager: processManager);
+=======
+        _processUtils =
+            ProcessUtils(logger: logger, processManager: processManager);
+
+  /// Create an [Xcode] for testing.
+  ///
+  /// Defaults to a memory file system, fake platform,
+  /// buffer logger, and test [XcodeProjectInterpreter].
+  @visibleForTesting
+  factory Xcode.test({
+    @required ProcessManager processManager,
+    XcodeProjectInterpreter xcodeProjectInterpreter,
+    Platform platform,
+    FileSystem fileSystem,
+  }) {
+    platform ??= FakePlatform(
+      operatingSystem: 'macos',
+      environment: <String, String>{},
+    );
+    return Xcode(
+      platform: platform,
+      processManager: processManager,
+      fileSystem: fileSystem ?? MemoryFileSystem.test(),
+      logger: BufferLogger.test(),
+      xcodeProjectInterpreter: xcodeProjectInterpreter ?? XcodeProjectInterpreter.test(processManager: processManager),
+    );
+  }
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
 
   final Platform _platform;
   final ProcessUtils _processUtils;
@@ -82,7 +103,7 @@ class Xcode {
   final FileSystem _fileSystem;
   final XcodeProjectInterpreter _xcodeProjectInterpreter;
 
-  bool get isInstalledAndMeetsVersionCheck => _platform.isMacOS && isInstalled && isVersionSatisfactory;
+  bool get isInstalledAndMeetsVersionCheck => _platform.isMacOS && isInstalled && isRequiredVersionSatisfactory;
 
   String _xcodeSelectPath;
   String get xcodeSelectPath {
@@ -100,16 +121,15 @@ class Xcode {
     return _xcodeSelectPath;
   }
 
-  bool get isInstalled {
-    if (xcodeSelectPath == null || xcodeSelectPath.isEmpty) {
-      return false;
-    }
-    return _xcodeProjectInterpreter.isInstalled;
-  }
+  bool get isInstalled => _xcodeProjectInterpreter.isInstalled;
 
-  int get majorVersion => _xcodeProjectInterpreter.majorVersion;
-  int get minorVersion => _xcodeProjectInterpreter.minorVersion;
-  int get patchVersion => _xcodeProjectInterpreter.patchVersion;
+  Version get currentVersion => Version(
+        _xcodeProjectInterpreter.majorVersion,
+        _xcodeProjectInterpreter.minorVersion,
+        _xcodeProjectInterpreter.patchVersion,
+        text:
+            '${_xcodeProjectInterpreter.majorVersion}.${_xcodeProjectInterpreter.minorVersion}.${_xcodeProjectInterpreter.patchVersion}',
+      );
 
   String get versionText => _xcodeProjectInterpreter.versionText;
 
@@ -146,7 +166,7 @@ class Xcode {
         final RunResult result = _processUtils.runSync(
           <String>[...xcrunCommand(), 'simctl', 'list'],
         );
-        _isSimctlInstalled = result.stderr == null || result.stderr == '';
+        _isSimctlInstalled = result.exitCode == 0;
       } on ProcessException {
         _isSimctlInstalled = false;
       }
@@ -154,22 +174,21 @@ class Xcode {
     return _isSimctlInstalled;
   }
 
-  bool get isVersionSatisfactory {
+  bool get isRequiredVersionSatisfactory {
     if (!_xcodeProjectInterpreter.isInstalled) {
       return false;
     }
-    if (majorVersion > kXcodeRequiredVersionMajor) {
-      return true;
-    }
-    if (majorVersion == kXcodeRequiredVersionMajor) {
-      if (minorVersion == kXcodeRequiredVersionMinor) {
-        return patchVersion >= kXcodeRequiredVersionPatch;
-      }
-      return minorVersion >= kXcodeRequiredVersionMinor;
-    }
-    return false;
+    return currentVersion >= xcodeRequiredVersion;
   }
 
+  bool get isRecommendedVersionSatisfactory {
+    if (!_xcodeProjectInterpreter.isInstalled) {
+      return false;
+    }
+    return currentVersion >= xcodeRecommendedVersion;
+  }
+
+<<<<<<< HEAD
   /// The `xcrun` Xcode command to run or locate development
   /// tools and properties.
   ///
@@ -188,6 +207,10 @@ class Xcode {
     xcrunCommand.add('xcrun');
     return xcrunCommand;
   }
+=======
+  /// See [XcodeProjectInterpreter.xcrunCommand].
+  List<String> xcrunCommand() => _xcodeProjectInterpreter.xcrunCommand();
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
 
   Future<RunResult> cc(List<String> args) {
     return _processUtils.run(
@@ -203,10 +226,14 @@ class Xcode {
     );
   }
 
-  Future<String> sdkLocation(SdkType sdk) async {
-    assert(sdk != null);
+  Future<String> sdkLocation(EnvironmentType environmentType) async {
+    assert(environmentType != null);
     final RunResult runResult = await _processUtils.run(
+<<<<<<< HEAD
       <String>[...xcrunCommand(), '--sdk', getNameForSdk(sdk), '--show-sdk-path'],
+=======
+      <String>[...xcrunCommand(), '--sdk', getSDKNameForIOSEnvironmentType(environmentType), '--show-sdk-path'],
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
     );
     if (runResult.exitCode != 0) {
       throwToolExit('Could not find SDK location: ${runResult.stderr}');
@@ -226,6 +253,17 @@ class Xcode {
       orElse: () => null,
     );
   }
+}
+
+EnvironmentType environmentTypeFromSdkroot(Directory sdkroot) {
+  assert(sdkroot != null);
+  // iPhoneSimulator.sdk or iPhoneOS.sdk
+  final String sdkName = sdkroot.basename.toLowerCase();
+  if (sdkName.contains('iphone')) {
+    return sdkName.contains('simulator') ? EnvironmentType.simulator : EnvironmentType.physical;
+  }
+  assert(false);
+  return null;
 }
 
 enum XCDeviceEvent {
@@ -519,7 +557,6 @@ class XCDevice {
         iosDeploy: _iosDeploy,
         iMobileDevice: _iMobileDevice,
         platform: globals.platform,
-        vmServiceConnectUri: vm_service_io.vmServiceConnectUri,
       ));
     }
     return devices;
@@ -588,7 +625,7 @@ class XCDevice {
         if (architecture.startsWith('armv7')) {
           cpuArchitecture = DarwinArch.armv7;
         } else {
-          cpuArchitecture = defaultIOSArchs.first;
+          cpuArchitecture = DarwinArch.arm64;
         }
         _logger.printError(
           'Unknown architecture $architecture, defaulting to '

@@ -16,6 +16,11 @@ import 'text_span.dart';
 
 export 'package:flutter/services.dart' show TextRange, TextSelection;
 
+// The default font size if none is specified. This should be kept in
+// sync with the default values in text_style.dart, as well as the
+// defaults set in the engine (eg, LibTxt's text_style.h, paragraph_style.h).
+const double _kDefaultFontSize = 14.0;
+
 /// Holds the [Size] and baseline required to represent the dimensions of
 /// a placeholder in text.
 ///
@@ -420,6 +425,10 @@ class TextPainter {
     ) ?? ui.ParagraphStyle(
       textAlign: textAlign,
       textDirection: textDirection ?? defaultTextDirection,
+      // Use the default font size to multiply by as RichText does not
+      // perform inheriting [TextStyle]s and would otherwise
+      // fail to apply textScaleFactor.
+      fontSize: _kDefaultFontSize * textScaleFactor,
       maxLines: maxLines,
       textHeightBehavior: _textHeightBehavior,
       ellipsis: ellipsis,
@@ -607,7 +616,7 @@ class TextPainter {
       if (_needsLayout) {
         throw FlutterError(
           'TextPainter.paint called when text geometry was not yet calculated.\n'
-          'Please call layout() before paint() to position the text before painting it.'
+          'Please call layout() before paint() to position the text before painting it.',
         );
       }
       return true;
@@ -844,6 +853,13 @@ class TextPainter {
   /// A given selection might have more than one rect if this text painter
   /// contains bidirectional text because logically contiguous text might not be
   /// visually contiguous.
+  ///
+  /// Leading or trailing newline characters will be represented by zero-width
+  /// `Textbox`es.
+  ///
+  /// The method only returns `TextBox`es of glyphs that are entirely enclosed by
+  /// the given `selection`: a multi-code-unit glyph will be excluded if only
+  /// part of its code units are in `selection`.
   List<TextBox> getBoxesForSelection(
     TextSelection selection, {
     ui.BoxHeightStyle boxHeightStyle = ui.BoxHeightStyle.tight,
@@ -856,7 +872,7 @@ class TextPainter {
       selection.start,
       selection.end,
       boxHeightStyle: boxHeightStyle,
-      boxWidthStyle: boxWidthStyle
+      boxWidthStyle: boxWidthStyle,
     );
   }
 

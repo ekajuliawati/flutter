@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:async';
 
 import 'package:flutter_tools/src/android/android_workflow.dart';
@@ -16,9 +18,14 @@ import 'package:flutter_tools/src/base/process.dart';
 import 'package:flutter_tools/src/base/signals.dart';
 import 'package:flutter_tools/src/base/template.dart';
 import 'package:flutter_tools/src/base/terminal.dart';
+<<<<<<< HEAD
 import 'package:flutter_tools/src/base/time.dart';
 import 'package:flutter_tools/src/build_runner/mustache_template.dart';
 import 'package:flutter_tools/src/build_info.dart';
+=======
+import 'package:flutter_tools/src/doctor_validator.dart';
+import 'package:flutter_tools/src/isolated/mustache_template.dart';
+>>>>>>> d79295af24c3ed621c33713ecda14ad196fd9c31
 import 'package:flutter_tools/src/cache.dart';
 import 'package:flutter_tools/src/context_runner.dart';
 import 'package:flutter_tools/src/dart/pub.dart';
@@ -31,13 +38,14 @@ import 'package:flutter_tools/src/persistent_tool_state.dart';
 import 'package:flutter_tools/src/project.dart';
 import 'package:flutter_tools/src/reporting/reporting.dart';
 import 'package:flutter_tools/src/version.dart';
-import 'package:flutter_tools/src/globals.dart' as globals;
+import 'package:flutter_tools/src/globals_null_migrated.dart' as globals;
 import 'package:meta/meta.dart';
 import 'package:mockito/mockito.dart';
 
 import 'common.dart';
+import 'fake_http_client.dart';
 import 'fake_process_manager.dart';
-import 'mocks.dart';
+import 'fakes.dart';
 import 'throwing_pub.dart';
 
 export 'package:flutter_tools/src/base/context.dart' show Generator;
@@ -54,10 +62,11 @@ typedef ContextInitializer = void Function(AppContext testContext);
 @isTest
 void testUsingContext(
   String description,
-  dynamic testMethod(), {
+  dynamic Function() testMethod, {
   Map<Type, Generator> overrides = const <Type, Generator>{},
   bool initializeFlutterRoot = true,
   String testOn,
+  Timeout timeout,
   bool skip, // should default to `false`, but https://github.com/dart-lang/test/issues/545 doesn't allow this
 }) {
   if (overrides[FileSystem] != null && overrides[ProcessManager] == null) {
@@ -85,7 +94,7 @@ void testUsingContext(
       'flutter_config_dir_test.',
     );
     return Config.test(
-      Config.kFlutterSettings,
+      name: Config.kFlutterSettings,
       directory: configDir,
       logger: globals.logger,
     );
@@ -109,8 +118,8 @@ void testUsingContext(
           Config: () => buildConfig(globals.fs),
           DeviceManager: () => FakeDeviceManager(),
           Doctor: () => FakeDoctor(globals.logger),
-          FlutterVersion: () => MockFlutterVersion(),
-          HttpClient: () => MockHttpClient(),
+          FlutterVersion: () => FakeFlutterVersion(),
+          HttpClient: () => FakeHttpClient.any(),
           IOSSimulatorUtils: () {
             final MockIOSSimulatorUtils mock = MockIOSSimulatorUtils();
             when(mock.getAttachedDevices()).thenAnswer((Invocation _) async => <IOSSimulator>[]);
@@ -124,10 +133,9 @@ void testUsingContext(
           OperatingSystemUtils: () => FakeOperatingSystemUtils(),
           PersistentToolState: () => buildPersistentToolState(globals.fs),
           SimControl: () => MockSimControl(),
-          Usage: () => FakeUsage(),
+          Usage: () => TestUsage(),
           XcodeProjectInterpreter: () => FakeXcodeProjectInterpreter(),
           FileSystem: () => LocalFileSystemBlockingSetCurrentDirectory(),
-          TimeoutConfiguration: () => const TimeoutConfiguration(),
           PlistParser: () => FakePlistParser(),
           Signals: () => FakeSignals(),
           Pub: () => ThrowingPub(), // prevent accidentally using pub.
@@ -173,9 +181,9 @@ void testUsingContext(
       // If a test needs a BotDetector that does not always return true, it
       // can provide the AlwaysFalseBotDetector in the overrides, or its own
       // BotDetector implementation in the overrides.
-      BotDetector: overrides[BotDetector] ?? () => const AlwaysTrueBotDetector(),
+      BotDetector: overrides[BotDetector] ?? () => const FakeBotDetector(true),
     });
-  }, testOn: testOn, skip: skip);
+  }, testOn: testOn, skip: skip, timeout: timeout);
 }
 
 void _printBufferedErrors(AppContext testContext) {
@@ -311,9 +319,6 @@ class FakeOperatingSystemUtils implements OperatingSystemUtils {
   File makePipe(String path) => null;
 
   @override
-  void zip(Directory data, File zipFile) { }
-
-  @override
   void unzip(File file, Directory targetDirectory) { }
 
   @override
@@ -334,66 +339,21 @@ class FakeOperatingSystemUtils implements OperatingSystemUtils {
 
 class MockIOSSimulatorUtils extends Mock implements IOSSimulatorUtils {}
 
-class FakeUsage implements Usage {
-  @override
-  bool get isFirstRun => false;
-
-  @override
-  bool get suppressAnalytics => false;
-
-  @override
-  set suppressAnalytics(bool value) { }
-
-  @override
-  bool get enabled => true;
-
-  @override
-  set enabled(bool value) { }
-
-  @override
-  String get clientId => '00000000-0000-4000-0000-000000000000';
-
-  @override
-  void sendCommand(String command, { Map<String, String> parameters }) { }
-
-  @override
-  void sendEvent(String category, String parameter, {
-    String label,
-    int value,
-    Map<String, String> parameters,
-  }) { }
-
-  @override
-  void sendTiming(String category, String variableName, Duration duration, { String label }) { }
-
-  @override
-  void sendException(dynamic exception) { }
-
-  @override
-  Stream<Map<String, dynamic>> get onSend => null;
-
-  @override
-  Future<void> ensureAnalyticsSent() => Future<void>.value();
-
-  @override
-  void printWelcome() { }
-}
-
 class FakeXcodeProjectInterpreter implements XcodeProjectInterpreter {
   @override
   bool get isInstalled => true;
 
   @override
-  String get versionText => 'Xcode 11.0';
+  String get versionText => 'Xcode 12.0.1';
 
   @override
-  int get majorVersion => 11;
+  int get majorVersion => 12;
 
   @override
   int get minorVersion => 0;
 
   @override
-  int get patchVersion => 0;
+  int get patchVersion => 1;
 
   @override
   Future<Map<String, String>> getBuildSettings(
@@ -418,30 +378,12 @@ class FakeXcodeProjectInterpreter implements XcodeProjectInterpreter {
       BufferLogger.test(),
     );
   }
-}
-
-class MockFlutterVersion extends Mock implements FlutterVersion {
-  MockFlutterVersion({bool isStable = false}) : _isStable = isStable;
-
-  final bool _isStable;
 
   @override
-  bool get isMaster => !_isStable;
+  List<String> xcrunCommand() => <String>['xcrun'];
 }
-
-class MockClock extends Mock implements SystemClock {}
-
-class MockHttpClient extends Mock implements HttpClient {}
 
 class MockCrashReporter extends Mock implements CrashReporter {}
-
-class FakePlistParser implements PlistParser {
-  @override
-  Map<String, dynamic> parseFile(String plistFilePath) => const <String, dynamic>{};
-
-  @override
-  String getValueFromFile(String plistFilePath, String key) => null;
-}
 
 class LocalFileSystemBlockingSetCurrentDirectory extends LocalFileSystem {
   LocalFileSystemBlockingSetCurrentDirectory() : super.test(

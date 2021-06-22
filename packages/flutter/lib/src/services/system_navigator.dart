@@ -3,15 +3,12 @@
 // found in the LICENSE file.
 
 
-import 'dart:async';
-
 import 'system_channels.dart';
 
 /// Controls specific aspects of the system navigation stack.
 class SystemNavigator {
   // This class is not meant to be instantiated or extended; this constructor
   // prevents instantiation and extension.
-  // ignore: unused_element
   SystemNavigator._();
 
   /// Removes the topmost Flutter instance, presenting what was before
@@ -42,7 +39,7 @@ class SystemNavigator {
   /// information.
   static void routeInformationUpdated({
     required String location,
-    Object? state
+    Object? state,
   }) {
     SystemChannels.navigation.invokeMethod<void>(
       'routeInformationUpdated',
@@ -58,7 +55,7 @@ class SystemNavigator {
   /// On Web, updates the URL bar with the [routeName].
   static void routeUpdated({
     String? routeName,
-    String? previousRouteName
+    String? previousRouteName,
   }) {
     SystemChannels.navigation.invokeMethod<void>(
       'routeUpdated',

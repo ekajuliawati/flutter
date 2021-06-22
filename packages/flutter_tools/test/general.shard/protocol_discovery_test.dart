@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
+// @dart = 2.8
 
-import 'package:flutter_tools/src/device.dart';
+import 'package:flutter_tools/src/base/logger.dart';
+import 'package:flutter_tools/src/device_port_forwarder.dart';
 import 'package:flutter_tools/src/protocol_discovery.dart';
 import 'package:fake_async/fake_async.dart';
 
@@ -44,6 +45,7 @@ void main() {
         hostPort: null,
         devicePort: devicePort,
         throttleDuration: throttleDuration,
+        logger: BufferLogger.test(),
       );
     }
 
@@ -197,6 +199,18 @@ void main() {
         expect('$uri', 'http://127.0.0.1:12345/PTwjm8Ii8qg=/');
       });
 
+      testUsingContext('protocol discovery does not crash if the log reader is closed while delaying', () async {
+        initialize(devicePort: 12346, throttleDuration: const Duration(milliseconds: 10));
+        final Future<List<Uri>> results = discoverer.uris.toList();
+        logReader.addLine('I/flutter : Observatory listening on http://127.0.0.1:12346/PTwjm8Ii8qg=/');
+        logReader.addLine('I/flutter : Observatory listening on http://127.0.0.1:12346/PTwjm8Ii8qg=/');
+        await logReader.dispose();
+
+        // Give time for throttle to finish.
+        await Future<void>.delayed(const Duration(milliseconds: 11));
+        expect(await results, isEmpty);
+      });
+
       testUsingContext('uris in the stream are throttled', () async {
         const Duration kThrottleDuration = Duration(milliseconds: 10);
 
@@ -268,6 +282,7 @@ void main() {
           hostPort: null,
           devicePort: null,
           ipv6: false,
+          logger: BufferLogger.test(),
         );
 
         // Get next port future.
@@ -289,6 +304,7 @@ void main() {
           hostPort: 1243,
           devicePort: null,
           ipv6: false,
+          logger: BufferLogger.test(),
         );
 
         // Get next port future.
@@ -310,6 +326,7 @@ void main() {
           hostPort: 0,
           devicePort: null,
           ipv6: false,
+          logger: BufferLogger.test(),
         );
 
         // Get next port future.
@@ -331,6 +348,7 @@ void main() {
           hostPort: 54777,
           ipv6: true,
           devicePort: null,
+          logger: BufferLogger.test(),
         );
 
         // Get next port future.
@@ -352,6 +370,7 @@ void main() {
           hostPort: 54777,
           ipv6: true,
           devicePort: null,
+          logger: BufferLogger.test(),
         );
 
         // Get next port future.

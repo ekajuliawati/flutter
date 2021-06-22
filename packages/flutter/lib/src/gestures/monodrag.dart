@@ -24,15 +24,18 @@ enum _DragState {
 /// The velocity at which the pointer was moving when it stopped contacting
 /// the screen is available in the `details`.
 ///
-/// See [DragGestureRecognizer.onEnd].
+/// Used by [DragGestureRecognizer.onEnd].
 typedef GestureDragEndCallback = void Function(DragEndDetails details);
 
 /// Signature for when the pointer that previously triggered a
 /// [GestureDragDownCallback] did not complete.
 ///
-/// See [DragGestureRecognizer.onCancel].
+/// Used by [DragGestureRecognizer.onCancel].
 typedef GestureDragCancelCallback = void Function();
 
+/// Signature for a function that builds a [VelocityTracker].
+///
+/// Used by [DragGestureRecognizer.velocityTrackerBuilder].
 typedef GestureVelocityTrackerBuilder = VelocityTracker Function(PointerEvent event);
 
 /// Recognizes movement.
@@ -60,7 +63,7 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
   ///
   /// [dragStartBehavior] must not be null.
   ///
-  /// {@macro flutter.gestures.gestureRecognizer.kind}
+  /// {@macro flutter.gestures.GestureRecognizer.kind}
   DragGestureRecognizer({
     Object? debugOwner,
     PointerDeviceKind? kind,
@@ -306,21 +309,22 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
       }
     }
     if (event is PointerUpEvent || event is PointerCancelEvent) {
-      _giveUpPointer(
-        event.pointer,
-        reject: event is PointerCancelEvent || _state ==_DragState.possible,
-      );
+      _giveUpPointer(event.pointer);
     }
   }
 
+  final Set<int> _acceptedActivePointers = <int>{};
+
   @override
   void acceptGesture(int pointer) {
+    assert(!_acceptedActivePointers.contains(pointer));
+    _acceptedActivePointers.add(pointer);
     if (_state != _DragState.accepted) {
       _state = _DragState.accepted;
       final OffsetPair delta = _pendingDragOffset;
       final Duration timestamp = _lastPendingEventTimestamp!;
       final Matrix4? transform = _lastTransform;
-      Offset localUpdateDelta;
+      final Offset localUpdateDelta;
       switch (dragStartBehavior) {
         case DragStartBehavior.start:
           _initialPosition = _initialPosition + delta;
@@ -333,7 +337,7 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
       _pendingDragOffset = OffsetPair.zero;
       _lastPendingEventTimestamp = null;
       _lastTransform = null;
-      _checkStart(timestamp);
+      _checkStart(timestamp, pointer);
       if (localUpdateDelta != Offset.zero && onUpdate != null) {
         final Matrix4? localToGlobal = transform != null ? Matrix4.tryInvert(transform) : null;
         final Offset correctedLocalPosition = _initialPosition.local + localUpdateDelta;
@@ -381,35 +385,36 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
     _state = _DragState.ready;
   }
 
-  void _giveUpPointer(int pointer, {bool reject = true}) {
+  void _giveUpPointer(int pointer) {
     stopTrackingPointer(pointer);
-    if (reject) {
-      if (_velocityTrackers.containsKey(pointer)) {
-        _velocityTrackers.remove(pointer);
-        resolvePointer(pointer, GestureDisposition.rejected);
-      }
-    }
+    // If we never accepted the pointer, we reject it since we are no longer
+    // interested in winning the gesture arena for it.
+    if (!_acceptedActivePointers.remove(pointer))
+      resolvePointer(pointer, GestureDisposition.rejected);
   }
 
   void _checkDown() {
     assert(_initialButtons == kPrimaryButton);
-    final DragDownDetails details = DragDownDetails(
-      globalPosition: _initialPosition.global,
-      localPosition: _initialPosition.local,
-    );
-    if (onDown != null)
+    if (onDown != null) {
+      final DragDownDetails details = DragDownDetails(
+        globalPosition: _initialPosition.global,
+        localPosition: _initialPosition.local,
+      );
       invokeCallback<void>('onDown', () => onDown!(details));
+    }
   }
 
-  void _checkStart(Duration timestamp) {
+  void _checkStart(Duration timestamp, int pointer) {
     assert(_initialButtons == kPrimaryButton);
-    final DragStartDetails details = DragStartDetails(
-      sourceTimeStamp: timestamp,
-      globalPosition: _initialPosition.global,
-      localPosition: _initialPosition.local,
-    );
-    if (onStart != null)
+    if (onStart != null) {
+      final DragStartDetails details = DragStartDetails(
+        sourceTimeStamp: timestamp,
+        globalPosition: _initialPosition.global,
+        localPosition: _initialPosition.local,
+        kind: getKindForPointer(pointer),
+      );
       invokeCallback<void>('onStart', () => onStart!(details));
+    }
   }
 
   void _checkUpdate({
@@ -420,15 +425,16 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
     Offset? localPosition,
   }) {
     assert(_initialButtons == kPrimaryButton);
-    final DragUpdateDetails details = DragUpdateDetails(
-      sourceTimeStamp: sourceTimeStamp,
-      delta: delta,
-      primaryDelta: primaryDelta,
-      globalPosition: globalPosition,
-      localPosition: localPosition,
-    );
-    if (onUpdate != null)
+    if (onUpdate != null) {
+      final DragUpdateDetails details = DragUpdateDetails(
+        sourceTimeStamp: sourceTimeStamp,
+        delta: delta,
+        primaryDelta: primaryDelta,
+        globalPosition: globalPosition,
+        localPosition: localPosition,
+      );
       invokeCallback<void>('onUpdate', () => onUpdate!(details));
+    }
   }
 
   void _checkEnd(int pointer) {
@@ -439,8 +445,8 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
     final VelocityTracker tracker = _velocityTrackers[pointer]!;
     assert(tracker != null);
 
-    DragEndDetails details;
-    String Function() debugReport;
+    final DragEndDetails details;
+    final String Function() debugReport;
 
     final VelocityEstimate? estimate = tracker.getVelocityEstimate();
     if (estimate != null && isFlingGesture(estimate, tracker.kind)) {
@@ -498,7 +504,7 @@ abstract class DragGestureRecognizer extends OneSequenceGestureRecognizer {
 class VerticalDragGestureRecognizer extends DragGestureRecognizer {
   /// Create a gesture recognizer for interactions in the vertical axis.
   ///
-  /// {@macro flutter.gestures.gestureRecognizer.kind}
+  /// {@macro flutter.gestures.GestureRecognizer.kind}
   VerticalDragGestureRecognizer({
     Object? debugOwner,
     PointerDeviceKind? kind,
@@ -539,7 +545,7 @@ class VerticalDragGestureRecognizer extends DragGestureRecognizer {
 class HorizontalDragGestureRecognizer extends DragGestureRecognizer {
   /// Create a gesture recognizer for interactions in the horizontal axis.
   ///
-  /// {@macro flutter.gestures.gestureRecognizer.kind}
+  /// {@macro flutter.gestures.GestureRecognizer.kind}
   HorizontalDragGestureRecognizer({
     Object? debugOwner,
     PointerDeviceKind? kind,
